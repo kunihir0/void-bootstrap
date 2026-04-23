@@ -332,18 +332,29 @@ fn stage_configure(state: &InstallState) -> Result<()> {
     Ok(())
 }
 
-fn stage_bootloader() -> Result<()> {
+fn stage_bootloader() -> Result<bool> {
     println!("\n[6] Installing GRUB Bootloader");
-    run_chroot(&[
+
+    let update_nvram = Confirm::new("Register Void in motherboard UEFI Boot Menu? (Choose 'Yes' if using F12 to select OS)")
+        .with_default(true)
+        .prompt()?;
+
+    let mut grub_args = vec![
         "grub-install", 
         "--target=x86_64-efi", 
         "--efi-directory=/boot/efi", 
         "--bootloader-id=Void",
-        "--no-nvram"
-    ])?;
+    ];
+
+    if !update_nvram {
+        grub_args.push("--no-nvram");
+    }
+
+    run_chroot(&grub_args)?;
     run_chroot(&["xbps-reconfigure", "-fa"])?;
     run_chroot(&["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])?;
-    Ok(())
+    
+    Ok(update_nvram)
 }
 
 fn stage_users() -> Result<()> {
@@ -392,21 +403,30 @@ fn main() -> Result<()> {
 
     stage_chroot_setup()?;
     stage_configure(&state)?;
-    stage_bootloader()?;
+    
+    let nvram_updated = stage_bootloader()?;
+    
     stage_users()?;
 
     println!("\n========================================");
     println!("Installation Complete!");
-    println!("\n[!] CRITICAL NEXT STEPS FOR DUAL/MULTI-BOOT");
-    println!("Because '--no-nvram' was used, Void is NOT yet in your UEFI boot list.");
-    println!("Before rebooting, you must do ONE of the following to ensure you can boot Void:\n");
-    println!("  A) Add to OpenCore Config:");
-    println!("     Point a Misc > Entries item at \\EFI\\Void\\grubx64.efi");
-    println!("     (Ensure Misc > Boot > LauncherOption is set properly if needed).\n");
-    println!("  B) Register via efibootmgr (run before unmounting):");
-    println!("     efibootmgr --create --disk /dev/sdX --part N \\");
-    println!("       --label 'Void Linux' --loader '\\EFI\\Void\\grubx64.efi'\n");
-    println!("     (Verify exact path with: ls /mnt/boot/efi/EFI/Void/ before registering)\n");
+
+    if !nvram_updated {
+        println!("\n[!] CRITICAL NEXT STEPS FOR DUAL/MULTI-BOOT");
+        println!("Because '--no-nvram' was used, Void is NOT yet in your UEFI boot list.");
+        println!("Before rebooting, you must do ONE of the following to ensure you can boot Void:\n");
+        println!("  A) Add to OpenCore Config:");
+        println!("     Point a Misc > Entries item at \\EFI\\Void\\grubx64.efi");
+        println!("     (Ensure Misc > Boot > LauncherOption is set properly if needed).\n");
+        println!("  B) Register via efibootmgr (run before unmounting):");
+        println!("     efibootmgr --create --disk /dev/sdX --part N \\");
+        println!("       --label 'Void Linux' --loader '\\EFI\\Void\\grubx64.efi'\n");
+        println!("     (Verify exact path with: ls /mnt/boot/efi/EFI/Void/ before registering)\n");
+    } else {
+        println!("\n>> Void Linux has been registered in your UEFI boot menu.");
+        println!(">> You can use your motherboard's boot menu (F12/F8) to select your OS.");
+    }
+
     println!("Once done, safely unmount and reboot:");
     println!("  umount -R /mnt && reboot");
     println!("========================================");
