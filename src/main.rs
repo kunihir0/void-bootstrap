@@ -434,11 +434,22 @@ fn stage_configure(state: &InstallState) -> Result<()> {
 fn stage_bootloader() -> Result<bool> {
     println!("\n[6] Installing GRUB Bootloader");
 
-    let update_nvram = Confirm::new(
-        "Register Void in motherboard UEFI Boot Menu? (Choose 'Yes' if using F12 to select OS)",
-    )
-    .with_default(true)
-    .prompt()?;
+    let efi_vars_exist = Path::new("/sys/firmware/efi/efivars").exists();
+    if !efi_vars_exist {
+        println!(">> WARNING: /sys/firmware/efi/efivars not found.");
+        println!(">> It appears you booted the installer in Legacy (BIOS) mode instead of UEFI.");
+        println!(">> NVRAM registration will be disabled because EFI variables are inaccessible.");
+    }
+
+    let update_nvram = if efi_vars_exist {
+        Confirm::new(
+            "Register Void in motherboard UEFI Boot Menu? (Choose 'Yes' if using F12 to select OS)",
+        )
+        .with_default(true)
+        .prompt()?
+    } else {
+        false
+    };
 
     let mut grub_args = vec![
         "grub-install",
