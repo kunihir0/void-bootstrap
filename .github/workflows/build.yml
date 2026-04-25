@@ -1,0 +1,30 @@
+name: Build and Upload Artifact
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Run tests
+      run: cargo test
+
+    - name: Build
+      run: cargo build --release
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: void_bootstrap-linux-x86_64
+        path: target/release/void_bootstrap
