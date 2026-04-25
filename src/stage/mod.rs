@@ -7,6 +7,7 @@ pub(crate) mod chroot;
 pub(crate) mod configure;
 pub(crate) mod disk;
 pub(crate) mod mount;
+pub(crate) mod repos;
 pub(crate) mod users;
 
 pub(crate) struct StageRunner<'a> {
@@ -54,6 +55,7 @@ pub(crate) fn run_pipeline(ui: &Ui) -> Result<()> {
     let nvram_updated = runner.run("Installing GRUB Bootloader", bootloader::run)?;
 
     runner.run("Finalizing Users and Services", users::run)?;
+    runner.run("Additional Repositories", repos::run)?;
 
     ui.completion(nvram_updated);
 
