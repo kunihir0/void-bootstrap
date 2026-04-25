@@ -208,11 +208,23 @@ fn stage_disk() -> Result<InstallState> {
         }
     }
 
-    let format_efi = Confirm::new(
+    let format_efi_initial = Confirm::new(
         "DANGER: Format the EFI partition? (Choose 'No' if sharing with Windows/OpenCore!)",
     )
     .with_default(false)
     .prompt()?;
+
+    let mut format_efi = false;
+    if format_efi_initial {
+        let confirm_text =
+            Text::new("Are you SURE? Type 'YES' in all caps to format the EFI partition:")
+                .prompt()?;
+        format_efi = confirm_text == "YES";
+
+        if !format_efi {
+            println!(">> EFI formatting cancelled.");
+        }
+    }
 
     if format_efi {
         run_cmd("mkfs.fat", &["-F32", &efi_part])?;
