@@ -231,7 +231,24 @@ fn stage_mount(state: &InstallState) -> Result<()> {
     println!("\n[2] Mounting Partitions");
 
     if run_cmd_output("findmnt", &["-M", "/mnt"]).is_ok() {
-        anyhow::bail!("/mnt is already mounted. Unmount it before running the installer.");
+        let auto_unmount = Confirm::new(
+            "/mnt is already mounted (likely from a previous run). Auto-unmount it now?",
+        )
+        .with_default(true)
+        .prompt()?;
+
+        if auto_unmount {
+            println!(">> Unmounting lingering partitions...");
+            let _ = Command::new("umount").args(["-R", "/mnt"]).status();
+
+            if run_cmd_output("findmnt", &["-M", "/mnt"]).is_ok() {
+                anyhow::bail!(
+                    "Failed to unmount /mnt completely. Please unmount manually: umount -R /mnt"
+                );
+            }
+        } else {
+            anyhow::bail!("/mnt is already mounted. Unmount it before running the installer.");
+        }
     }
 
     if state.fs_type == FsType::Btrfs {
