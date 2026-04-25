@@ -525,7 +525,10 @@ fn stage_users() -> Result<()> {
         fs::Permissions::from_mode(0o440),
     )?;
 
-    run_chroot(&["ln", "-s", "/etc/sv/NetworkManager", "/var/service/"])?;
+    println!(">> Enabling dbus and NetworkManager services...");
+    run_chroot(&["ln", "-s", "/etc/sv/dbus", "/var/service/"]).ok();
+    run_chroot(&["ln", "-s", "/etc/sv/NetworkManager", "/var/service/"]).ok();
+
     Ok(())
 }
 
