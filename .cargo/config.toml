@@ -1,0 +1,2 @@
+[alias]
+lint = "clippy -- -D warnings -D clippy::pedantic -A clippy::must_use_candidate"
