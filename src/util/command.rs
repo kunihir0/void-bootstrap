@@ -1,3 +1,4 @@
+use crate::context::TARGET;
 use anyhow::{Context, Result};
 use std::process::{Command, Stdio};
 
@@ -7,10 +8,10 @@ pub(crate) fn run(command: &str, args: &[&str]) -> Result<()> {
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .status()
-        .with_context(|| format!("Failed to execute {command}"))?;
+        .with_context(|| format!("Failed to execute '{command}'"))?;
 
     if !status.success() {
-        anyhow::bail!("Command failed with status: {status}");
+        anyhow::bail!("'{command} {}' failed with {status}", args.join(" "));
     }
     Ok(())
 }
@@ -19,11 +20,12 @@ pub(crate) fn run_output(command: &str, args: &[&str]) -> Result<String> {
     let output = Command::new(command)
         .args(args)
         .output()
-        .with_context(|| format!("Failed to execute {command}"))?;
+        .with_context(|| format!("Failed to execute '{command}'"))?;
 
     if !output.status.success() {
         anyhow::bail!(
-            "Command failed: {}",
+            "'{command} {}' failed: {}",
+            args.join(" "),
             String::from_utf8_lossy(&output.stderr)
         );
     }
@@ -32,7 +34,7 @@ pub(crate) fn run_output(command: &str, args: &[&str]) -> Result<String> {
 }
 
 pub(crate) fn run_chroot(args: &[&str]) -> Result<()> {
-    run("chroot", &[&["/mnt"], args].concat())
+    run("chroot", &[&[TARGET], args].concat())
 }
 
 pub(crate) fn block_device_uuid(partition: &str) -> Result<String> {

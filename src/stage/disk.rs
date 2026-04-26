@@ -40,13 +40,8 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
         |p| validate_block_device(p).map_err(|e| format!("Invalid: {e}. Please try again.")),
     )?;
 
-    let fs_type_str = ui.select("Root filesystem type:", vec!["ext4", "btrfs", "xfs"])?;
-    let fs_type = match fs_type_str {
-        "ext4" => FsType::Ext4,
-        "btrfs" => FsType::Btrfs,
-        "xfs" => FsType::Xfs,
-        _ => unreachable!("Select widget handles exhaustiveness"),
-    };
+    let fs_type: FsType =
+        ui.select_parsed("Root filesystem type:", FsType::SELECT_OPTIONS.to_vec())?;
 
     let format_root = ui.confirm_destructive(
         "All data on this partition will be permanently erased.",
@@ -54,7 +49,7 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
     )?;
 
     if format_root {
-        ui.status(&format!("Formatting {root_part} as {fs_type_str}..."));
+        ui.status(&format!("Formatting {root_part} as {fs_type}..."));
         match fs_type {
             FsType::Ext4 => command::run("mkfs.ext4", &["-F", &root_part])?,
             FsType::Xfs => command::run("mkfs.xfs", &["-f", &root_part])?,

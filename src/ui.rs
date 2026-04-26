@@ -2,6 +2,9 @@ use anyhow::Result;
 use inquire::ui::{Color, RenderConfig, StyleSheet, Styled};
 use inquire::{Confirm, Select, Text};
 use std::io::IsTerminal;
+use std::sync::Once;
+
+static INQUIRE_INIT: Once = Once::new();
 
 pub(crate) struct Ui {
     color: bool,
@@ -13,19 +16,21 @@ impl Ui {
             && std::env::var_os("NO_COLOR").is_none()
             && std::env::var("TERM").map_or(true, |t| t != "dumb");
 
-        if color {
-            let mut config = RenderConfig::default_colored();
-            config.prompt_prefix = Styled::new(">").with_fg(Color::DarkCyan);
-            config.answered_prompt_prefix = Styled::new(">").with_fg(Color::DarkGreen);
-            config.prompt = StyleSheet::new().with_fg(Color::White);
-            config.answer = StyleSheet::new().with_fg(Color::DarkGreen);
-            config.error_message = config
-                .error_message
-                .with_prefix(Styled::new("!!").with_fg(Color::DarkRed));
-            inquire::set_global_render_config(config);
-        } else {
-            inquire::set_global_render_config(RenderConfig::empty());
-        }
+        INQUIRE_INIT.call_once(|| {
+            if color {
+                let mut config = RenderConfig::default_colored();
+                config.prompt_prefix = Styled::new(">").with_fg(Color::DarkCyan);
+                config.answered_prompt_prefix = Styled::new(">").with_fg(Color::DarkGreen);
+                config.prompt = StyleSheet::new().with_fg(Color::White);
+                config.answer = StyleSheet::new().with_fg(Color::DarkGreen);
+                config.error_message = config
+                    .error_message
+                    .with_prefix(Styled::new("!!").with_fg(Color::DarkRed));
+                inquire::set_global_render_config(config);
+            } else {
+                inquire::set_global_render_config(RenderConfig::empty());
+            }
+        });
 
         Self { color }
     }
@@ -149,9 +154,17 @@ impl Ui {
         Ok(result)
     }
 
-    pub(crate) fn select<'a>(&self, prompt: &str, options: Vec<&'a str>) -> Result<&'a str> {
-        let result = Select::new(prompt, options).prompt()?;
-        Ok(result)
+    /// Type-safe select — parses the chosen label into `T` via `FromStr`,
+    /// eliminating `unreachable!()` match arms in callers.
+    pub(crate) fn select_parsed<T>(&self, prompt: &str, options: Vec<&str>) -> Result<T>
+    where
+        T: std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        let selected = Select::new(prompt, options).prompt()?;
+        selected
+            .parse::<T>()
+            .map_err(|e| anyhow::anyhow!("Invalid selection '{selected}': {e}"))
     }
 
     pub(crate) fn prompt_validated<F>(
@@ -183,5 +196,26 @@ impl Ui {
         }
         let input = text.prompt()?;
         Ok(input)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ansi_applies_codes_when_color_enabled() {
+        let ui = Ui { color: true };
+        let result = ui.ansi("1;31", "hello");
+        assert!(result.starts_with("\x1b[1;31m"));
+        assert!(result.ends_with("\x1b[0m"));
+        assert!(result.contains("hello"));
+    }
+
+    #[test]
+    fn ansi_returns_plain_text_when_color_disabled() {
+        let ui = Ui { color: false };
+        let result = ui.ansi("1;31", "hello");
+        assert_eq!(result, "hello");
     }
 }

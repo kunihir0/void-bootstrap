@@ -1,3 +1,4 @@
+use crate::context::TARGET;
 use crate::ui::Ui;
 use crate::util::command::run_chroot;
 use anyhow::Result;
@@ -28,9 +29,10 @@ fn install_xlibre(ui: &Ui) -> Result<()> {
     run_chroot(&["wget", "-O", XLIBRE_KEY_PATH, XLIBRE_KEY_URL])?;
 
     ui.status("Adding XLibre repository configuration...");
-    fs::create_dir_all("/mnt/etc/xbps.d")?;
+    let xbps_dir = format!("{TARGET}/etc/xbps.d");
+    fs::create_dir_all(&xbps_dir)?;
     fs::write(
-        "/mnt/etc/xbps.d/99-repository-xlibre.conf",
+        format!("{xbps_dir}/99-repository-xlibre.conf"),
         format!("repository={XLIBRE_REPO_URL}\n"),
     )?;
 

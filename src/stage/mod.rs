@@ -42,14 +42,9 @@ pub(crate) fn run_pipeline(ui: &Ui) -> Result<()> {
         base_install::run(ui, &ctx)
     })?;
 
-    scopeguard::defer! {
-        ui.status("Cleaning up bind mounts...");
-        for dir in &["run", "sys", "proc", "dev"] {
-            let _ = std::process::Command::new("umount").args(["-R", &format!("/mnt/{dir}")]).status();
-        }
-    }
-
-    runner.run("Configuring the Chroot Environment", chroot::setup)?;
+    // ChrootGuard binds host filesystems on enter and unmounts on drop.
+    // The `_chroot` binding keeps the guard alive until this function returns.
+    let _chroot = runner.run("Configuring the Chroot Environment", chroot::ChrootGuard::enter)?;
     runner.run("Native System Configuration", |ui| configure::run(ui, &ctx))?;
 
     let nvram_updated = runner.run("Installing GRUB Bootloader", bootloader::run)?;

@@ -1,3 +1,4 @@
+use crate::context::TARGET;
 use crate::ui::Ui;
 use crate::util::command::run_chroot;
 use crate::validation::validate_username;
@@ -26,11 +27,9 @@ pub(crate) fn run(ui: &Ui) -> Result<()> {
     ui.status(&format!("Set password for {username}:"));
     run_chroot(&["passwd", &username])?;
 
-    fs::write("/mnt/etc/sudoers.d/wheel", "%wheel ALL=(ALL:ALL) ALL\n")?;
-    fs::set_permissions(
-        "/mnt/etc/sudoers.d/wheel",
-        fs::Permissions::from_mode(0o440),
-    )?;
+    let sudoers_path = format!("{TARGET}/etc/sudoers.d/wheel");
+    fs::write(&sudoers_path, "%wheel ALL=(ALL:ALL) ALL\n")?;
+    fs::set_permissions(&sudoers_path, fs::Permissions::from_mode(0o440))?;
 
     ui.status("Enabling dbus and NetworkManager services...");
     run_chroot(&["ln", "-s", "/etc/sv/dbus", "/var/service/"]).ok();

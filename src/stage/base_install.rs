@@ -1,4 +1,4 @@
-use crate::context::InstallContext;
+use crate::context::{InstallContext, TARGET};
 use crate::types::{FsType, GpuVendor, XBPS_REPO};
 use crate::ui::Ui;
 use crate::util::command;
@@ -7,18 +7,8 @@ use anyhow::Result;
 use std::fs;
 
 pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
-    let gpu_str = ui.select(
-        "Select GPU vendor for drivers:",
-        vec!["AMD", "Intel", "NVIDIA", "None"],
-    )?;
-
-    let gpu = match gpu_str {
-        "AMD" => GpuVendor::Amd,
-        "Intel" => GpuVendor::Intel,
-        "NVIDIA" => GpuVendor::Nvidia,
-        "None" => GpuVendor::None,
-        _ => unreachable!("Select widget handles exhaustiveness"),
-    };
+    let gpu: GpuVendor =
+        ui.select_parsed("Select GPU vendor for drivers:", GpuVendor::SELECT_OPTIONS.to_vec())?;
 
     let mut base_packages = vec![
         "base-system",
@@ -33,8 +23,9 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
         base_packages.push("btrfs-progs");
     }
 
-    fs::create_dir_all("/mnt/var/db/xbps/keys")?;
-    copy_dir_all("/var/db/xbps/keys", "/mnt/var/db/xbps/keys")?;
+    let target_keys = ctx.target_path("var/db/xbps/keys");
+    fs::create_dir_all(&target_keys)?;
+    copy_dir_all("/var/db/xbps/keys", &target_keys)?;
 
     if gpu == GpuVendor::Nvidia {
         ui.status("Setting up Void non-free repository for NVIDIA...");
@@ -48,7 +39,7 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
                 "-R",
                 XBPS_REPO,
                 "-r",
-                "/mnt",
+                TARGET,
                 "--",
                 "void-repo-nonfree",
             ],
@@ -58,7 +49,7 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     base_packages.extend(gpu.packages().iter().copied());
 
     ui.status("Installing base system packages (this may take a while)...");
-    let mut xbps_args = vec!["-y", "-S", "-R", XBPS_REPO, "-r", "/mnt", "--"];
+    let mut xbps_args = vec!["-y", "-S", "-R", XBPS_REPO, "-r", TARGET, "--"];
     xbps_args.extend(base_packages.iter().copied());
     command::run("xbps-install", &xbps_args)?;
 

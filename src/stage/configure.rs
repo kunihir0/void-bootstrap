@@ -4,16 +4,16 @@ use crate::util::command::{block_device_uuid, run_chroot};
 use crate::validation::{validate_hostname, validate_locale, validate_timezone};
 use anyhow::Result;
 use std::fs;
-use std::path::Path;
 
 pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     let hostname = ui.prompt_validated("Enter system hostname:", Some("voidlinux"), |h| {
         validate_hostname(h)
     })?;
-    fs::write("/mnt/etc/hostname", format!("{hostname}\n"))?;
+    fs::write(ctx.target_path("etc/hostname"), format!("{hostname}\n"))?;
 
+    let tz_zoneinfo = ctx.target_path("usr/share/zoneinfo");
     let timezone = ui.prompt_validated("Enter timezone:", Some("America/Phoenix"), |tz| {
-        validate_timezone(tz, Path::new("/mnt/usr/share/zoneinfo"))
+        validate_timezone(tz, &tz_zoneinfo)
     })?;
     run_chroot(&[
         "ln",
@@ -26,10 +26,13 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
         validate_locale(l)
     })?;
 
-    fs::write("/mnt/etc/locale.conf", format!("LANG={locale}\n"))?;
-    let libc_locales_path = "/mnt/etc/default/libc-locales";
-    if Path::new(libc_locales_path).exists() {
-        let contents = fs::read_to_string(libc_locales_path)?;
+    fs::write(
+        ctx.target_path("etc/locale.conf"),
+        format!("LANG={locale}\n"),
+    )?;
+    let libc_locales_path = ctx.target_path("etc/default/libc-locales");
+    if libc_locales_path.exists() {
+        let contents = fs::read_to_string(&libc_locales_path)?;
         let locale_prefix = format!("{locale} ");
         let uncommented = contents
             .lines()
@@ -44,7 +47,7 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
             .collect::<Vec<_>>()
             .join("\n")
             + "\n";
-        fs::write(libc_locales_path, uncommented)?;
+        fs::write(&libc_locales_path, uncommented)?;
     }
     ui.status("Reconfiguring glibc locales...");
     run_chroot(&["xbps-reconfigure", "-f", "glibc-locales"])?;
@@ -59,7 +62,7 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     let fstab = format!(
         "UUID={root_uuid} / {fs_str} {root_opts} {root_dump_pass}\nUUID={efi_uuid} /boot/efi vfat defaults 0 0\n"
     );
-    fs::write("/mnt/etc/fstab", fstab)?;
+    fs::write(ctx.target_path("etc/fstab"), fstab)?;
 
     ui.success("System configured.");
 
