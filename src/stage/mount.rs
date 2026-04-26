@@ -27,14 +27,18 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
         }
     }
 
+    ui.status(&format!("Mounting {} at /mnt...", ctx.root_part));
     if ctx.fs_type == FsType::Btrfs {
         command::run("mount", &["-o", "subvol=@", &ctx.root_part, "/mnt"])?;
     } else {
         command::run("mount", &[&ctx.root_part, "/mnt"])?;
     }
 
+    ui.status(&format!("Mounting {} at /mnt/boot/efi...", ctx.efi_part));
     fs::create_dir_all("/mnt/boot/efi").context("Failed to create EFI directory")?;
     command::run("mount", &[&ctx.efi_part, "/mnt/boot/efi"])?;
+
+    ui.success("Partitions mounted.");
 
     Ok(())
 }

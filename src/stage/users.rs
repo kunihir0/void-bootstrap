@@ -36,5 +36,7 @@ pub(crate) fn run(ui: &Ui) -> Result<()> {
     run_chroot(&["ln", "-s", "/etc/sv/dbus", "/var/service/"]).ok();
     run_chroot(&["ln", "-s", "/etc/sv/NetworkManager", "/var/service/"]).ok();
 
+    ui.success("Users and services configured.");
+
     Ok(())
 }

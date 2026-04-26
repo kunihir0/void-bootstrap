@@ -25,7 +25,7 @@ impl<'a> StageRunner<'a> {
         F: FnOnce(&Ui) -> Result<T>,
     {
         self.step += 1;
-        self.ui.section(self.step, name);
+        self.ui.step(self.step, name);
         f(self.ui).with_context(|| format!("Stage '{name}' failed"))
     }
 }

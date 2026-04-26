@@ -46,6 +46,7 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
             + "\n";
         fs::write(libc_locales_path, uncommented)?;
     }
+    ui.status("Reconfiguring glibc locales...");
     run_chroot(&["xbps-reconfigure", "-f", "glibc-locales"])?;
 
     let root_uuid = block_device_uuid(&ctx.root_part)?;
@@ -59,6 +60,8 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
         "UUID={root_uuid} / {fs_str} {root_opts} {root_dump_pass}\nUUID={efi_uuid} /boot/efi vfat defaults 0 0\n"
     );
     fs::write("/mnt/etc/fstab", fstab)?;
+
+    ui.success("System configured.");
 
     Ok(())
 }

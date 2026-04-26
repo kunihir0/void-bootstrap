@@ -1,5 +1,3 @@
-use anyhow::Result;
-
 pub(crate) mod context;
 pub(crate) mod stage;
 pub(crate) mod types;
@@ -9,7 +7,11 @@ pub(crate) mod validation;
 
 use ui::Ui;
 
-fn main() -> Result<()> {
+fn main() {
     let ui = Ui::new();
-    stage::run_pipeline(&ui)
+
+    if let Err(e) = stage::run_pipeline(&ui) {
+        ui.error(&format!("{e:#}"));
+        std::process::exit(1);
+    }
 }

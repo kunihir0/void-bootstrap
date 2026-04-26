@@ -34,6 +34,6 @@ fn install_xlibre(ui: &Ui) -> Result<()> {
         format!("repository={XLIBRE_REPO_URL}\n"),
     )?;
 
-    ui.status("XLibre repository added successfully.");
+    ui.success("XLibre repository added successfully.");
     Ok(())
 }

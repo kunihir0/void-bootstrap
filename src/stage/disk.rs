@@ -8,6 +8,7 @@ use std::fs;
 use std::process::Command;
 
 pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
+    ui.status("Current disk layout:");
     command::run("lsblk", &[])?;
 
     let run_partitioner = ui.confirm(
@@ -47,17 +48,19 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
         _ => unreachable!("Select widget handles exhaustiveness"),
     };
 
-    let format_root = ui.confirm(
-        "DANGER: Format the ROOT partition now? All data on this partition will be lost.",
-        false,
+    let format_root = ui.confirm_destructive(
+        "All data on this partition will be permanently erased.",
+        "Format the ROOT partition now?",
     )?;
 
     if format_root {
+        ui.status(&format!("Formatting {root_part} as {fs_type_str}..."));
         match fs_type {
             FsType::Ext4 => command::run("mkfs.ext4", &["-F", &root_part])?,
             FsType::Xfs => command::run("mkfs.xfs", &["-f", &root_part])?,
             FsType::Btrfs => {
                 command::run("mkfs.btrfs", &["-f", &root_part])?;
+                ui.status("Creating btrfs subvolume '@'...");
                 fs::create_dir_all("/tmp/btrfs-setup")?;
                 command::run("mount", &[&root_part, "/tmp/btrfs-setup"])?;
 
@@ -68,11 +71,12 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
                 command::run("btrfs", &["subvolume", "create", "/tmp/btrfs-setup/@"])?;
             }
         }
+        ui.success("Root partition formatted.");
     }
 
-    let format_efi_initial = ui.confirm(
-        "DANGER: Format the EFI partition? (Choose 'No' if sharing with Windows/OpenCore!)",
-        false,
+    let format_efi_initial = ui.confirm_destructive(
+        "Formatting the EFI partition will destroy existing bootloaders (Windows/OpenCore).",
+        "Format the EFI partition?",
     )?;
 
     let mut format_efi = false;
@@ -84,14 +88,16 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
         format_efi = confirm_text == "YES";
 
         if !format_efi {
-            ui.status("EFI formatting cancelled.");
+            ui.info("EFI formatting cancelled.");
         }
     }
 
     if format_efi {
+        ui.status(&format!("Formatting {efi_part} as FAT32..."));
         command::run("mkfs.fat", &["-F32", &efi_part])?;
+        ui.success("EFI partition formatted.");
     } else {
-        ui.status("Skipping EFI format. Existing bootloaders will be preserved.");
+        ui.info("Skipping EFI format. Existing bootloaders will be preserved.");
     }
 
     Ok(InstallContext {

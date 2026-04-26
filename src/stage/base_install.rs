@@ -38,8 +38,8 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
 
     if gpu == GpuVendor::Nvidia {
         ui.status("Setting up Void non-free repository for NVIDIA...");
-        ui.note("For Wayland support, you may also need 'nvidia-dkms'.");
-        ui.note("Add 'nvidia-drm.modeset=1' to your GRUB_CMDLINE_LINUX.");
+        ui.info("For Wayland support, you may also need 'nvidia-dkms'.");
+        ui.info("Add 'nvidia-drm.modeset=1' to your GRUB_CMDLINE_LINUX.");
         command::run(
             "xbps-install",
             &[
@@ -57,9 +57,12 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
 
     base_packages.extend(gpu.packages().iter().copied());
 
+    ui.status("Installing base system packages (this may take a while)...");
     let mut xbps_args = vec!["-y", "-S", "-R", XBPS_REPO, "-r", "/mnt", "--"];
     xbps_args.extend(base_packages.iter().copied());
     command::run("xbps-install", &xbps_args)?;
+
+    ui.success("Base system installed.");
 
     Ok(())
 }
