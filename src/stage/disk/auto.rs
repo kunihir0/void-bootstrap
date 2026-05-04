@@ -51,17 +51,23 @@ pub(crate) fn run(ui: &Ui, existing_efi: Option<&str>) -> Result<AutoResult> {
     ui.status(&format!("Wiping signatures on {disk}..."));
     command::run("wipefs", &["-a", "-f", &disk])?;
 
+    // GPT partition type GUIDs (portable across all sfdisk versions).
+    const EFI_TYPE: &str = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B";
+    const LINUX_TYPE: &str = "0FC63DAF-8483-4772-8E79-3D69D8477DE4";
+
     let (efi_part, linux_part) = if existing_efi.is_some() {
         // Entire disk → single Linux partition.
         ui.status("Creating Linux partition (entire disk)...");
-        let script = "label: gpt\n,,L,Linux filesystem\n";
-        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], script)?;
+        let script = format!("label: gpt\ntype={LINUX_TYPE}, name=\"Linux filesystem\"\n");
+        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], &script)?;
         (None, partition_path(&disk, 1))
     } else {
         // EFI (512M) + Linux (remainder).
         ui.status("Creating EFI (512 MiB) + Linux partitions...");
-        let script = "label: gpt\n,512M,U,EFI System\n,,L,Linux filesystem\n";
-        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], script)?;
+        let script = format!(
+            "label: gpt\nsize=512MiB, type={EFI_TYPE}, name=\"EFI System\"\ntype={LINUX_TYPE}, name=\"Linux filesystem\"\n"
+        );
+        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], &script)?;
         (Some(partition_path(&disk, 1)), partition_path(&disk, 2))
     };
 
