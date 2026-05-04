@@ -1,4 +1,4 @@
-use crate::types::FsType;
+use crate::types::{BtrfsLayout, FsType, VolumeManager};
 use std::path::PathBuf;
 
 /// Root mountpoint for the target system.
@@ -6,9 +6,15 @@ pub(crate) const TARGET: &str = "/mnt";
 
 #[derive(Debug)]
 pub(crate) struct InstallContext {
-    pub root_part: String,
-    pub efi_part: String,
+    /// Device path for the root filesystem.
+    /// Standard partition (e.g. `/dev/nvme0n1p2`) or LVM LV (e.g. `/dev/vg_void/lv_root`).
+    pub root_device: String,
+    /// Device path for the EFI system partition.
+    pub efi_device: String,
     pub fs_type: FsType,
+    /// `None` when the filesystem is not BTRFS.
+    pub btrfs_layout: Option<BtrfsLayout>,
+    pub volume_mgr: VolumeManager,
 }
 
 impl InstallContext {
@@ -24,13 +30,19 @@ impl InstallContext {
 mod tests {
     use super::*;
 
+    fn dummy_ctx() -> InstallContext {
+        InstallContext {
+            root_device: String::new(),
+            efi_device: String::new(),
+            fs_type: FsType::Ext4,
+            btrfs_layout: None,
+            volume_mgr: VolumeManager::Standard,
+        }
+    }
+
     #[test]
     fn target_path_joins_correctly() {
-        let ctx = InstallContext {
-            root_part: String::new(),
-            efi_part: String::new(),
-            fs_type: FsType::Ext4,
-        };
+        let ctx = dummy_ctx();
         assert_eq!(ctx.target_path("etc/hostname"), PathBuf::from("/mnt/etc/hostname"));
         assert_eq!(ctx.target_path("boot/efi"), PathBuf::from("/mnt/boot/efi"));
     }

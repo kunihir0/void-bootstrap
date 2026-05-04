@@ -1,5 +1,5 @@
 use crate::context::{InstallContext, TARGET};
-use crate::types::{FsType, GpuVendor, XBPS_REPO};
+use crate::types::{FsType, GpuVendor, VolumeManager, XBPS_REPO};
 use crate::ui::Ui;
 use crate::util::command;
 use crate::util::fs::copy_dir_all;
@@ -21,6 +21,10 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
 
     if ctx.fs_type == FsType::Btrfs {
         base_packages.push("btrfs-progs");
+    }
+
+    if ctx.volume_mgr == VolumeManager::Lvm {
+        base_packages.push("lvm2");
     }
 
     let target_keys = ctx.target_path("var/db/xbps/keys");

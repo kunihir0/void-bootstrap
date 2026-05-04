@@ -188,15 +188,6 @@ impl Ui {
             }
         }
     }
-
-    pub(crate) fn prompt_text(&self, prompt: &str, default: Option<&str>) -> Result<String> {
-        let mut text = Text::new(prompt);
-        if let Some(def) = default {
-            text = text.with_default(def);
-        }
-        let input = text.prompt()?;
-        Ok(input)
-    }
 }
 
 #[cfg(test)]
