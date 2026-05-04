@@ -8,7 +8,7 @@ use std::os::unix::fs::PermissionsExt;
 
 pub(crate) fn run(ui: &Ui) -> Result<()> {
     ui.status("Set ROOT password:");
-    run_chroot(&["passwd"])?;
+    set_password(ui, &["passwd"])?;
 
     let username = ui.prompt_validated("Enter primary username:", Some("baobao"), |u| {
         validate_username(u)
@@ -25,7 +25,7 @@ pub(crate) fn run(ui: &Ui) -> Result<()> {
     ])?;
 
     ui.status(&format!("Set password for {username}:"));
-    run_chroot(&["passwd", &username])?;
+    set_password(ui, &["passwd", &username])?;
 
     let sudoers_path = format!("{TARGET}/etc/sudoers.d/wheel");
     fs::write(&sudoers_path, "%wheel ALL=(ALL:ALL) ALL\n")?;
@@ -38,4 +38,20 @@ pub(crate) fn run(ui: &Ui) -> Result<()> {
     ui.success("Users and services configured.");
 
     Ok(())
+}
+
+/// Retry `passwd` until the user enters a valid, matching password.
+///
+/// `passwd` exits non-zero (e.g. code 10 = "password unchanged") when the
+/// input is rejected — this is not a fatal installer error, just a prompt
+/// to try again.
+fn set_password(ui: &Ui, args: &[&str]) -> Result<()> {
+    loop {
+        match run_chroot(args) {
+            Ok(()) => return Ok(()),
+            Err(_) => {
+                ui.warning("Password was not set. Please try again.");
+            }
+        }
+    }
 }
