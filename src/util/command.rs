@@ -16,6 +16,34 @@ pub(crate) fn run(command: &str, args: &[&str]) -> Result<()> {
     Ok(())
 }
 
+/// Run a command feeding `stdin_data` to its standard input.
+pub(crate) fn run_with_stdin(command: &str, args: &[&str], stdin_data: &str) -> Result<()> {
+    use std::io::Write;
+
+    let mut child = Command::new(command)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .with_context(|| format!("Failed to execute '{command}'"))?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(stdin_data.as_bytes())
+            .with_context(|| format!("Failed to write to '{command}' stdin"))?;
+    }
+
+    let status = child
+        .wait()
+        .with_context(|| format!("Failed to wait for '{command}'"))?;
+
+    if !status.success() {
+        anyhow::bail!("'{command} {}' failed with {status}", args.join(" "));
+    }
+    Ok(())
+}
+
 pub(crate) fn run_output(command: &str, args: &[&str]) -> Result<String> {
     let output = Command::new(command)
         .args(args)

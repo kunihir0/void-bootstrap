@@ -1,7 +1,7 @@
 use crate::ui::Ui;
 use crate::util::command;
 use crate::util::fs::validate_block_device;
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 /// Result of automatic disk partitioning.
 pub(crate) struct AutoResult {
@@ -27,7 +27,7 @@ fn partition_path(disk: &str, num: u32) -> String {
     }
 }
 
-/// Automatically partition a whole disk using `sgdisk`.
+/// Automatically partition a whole disk using `sfdisk` (part of util-linux).
 ///
 /// If `existing_efi` is `Some`, the entire disk is allocated to Linux.
 /// Otherwise a 512 MiB EFI System Partition is created first.
@@ -47,35 +47,23 @@ pub(crate) fn run(ui: &Ui, existing_efi: Option<&str>) -> Result<AutoResult> {
         anyhow::bail!("Automated partitioning cancelled by user.");
     }
 
-    ui.status(&format!("Wiping partition table on {disk}..."));
-    command::run("sgdisk", &["--zap-all", &disk])?;
+    // Wipe existing filesystem signatures so sfdisk starts clean.
+    ui.status(&format!("Wiping signatures on {disk}..."));
+    command::run("wipefs", &["-a", "-f", &disk])?;
 
     let (efi_part, linux_part) = if existing_efi.is_some() {
         // Entire disk → single Linux partition.
         ui.status("Creating Linux partition (entire disk)...");
-        command::run(
-            "sgdisk",
-            &["-n", "1:0:0", "-t", "1:8300", "-c", "1:Linux filesystem", &disk],
-        )?;
+        let script = "label: gpt\n,,L,Linux filesystem\n";
+        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], script)?;
         (None, partition_path(&disk, 1))
     } else {
         // EFI (512M) + Linux (remainder).
         ui.status("Creating EFI (512 MiB) + Linux partitions...");
-        command::run(
-            "sgdisk",
-            &[
-                "-n", "1:0:+512M", "-t", "1:ef00", "-c", "1:EFI System",
-                "-n", "2:0:0",     "-t", "2:8300", "-c", "2:Linux filesystem",
-                &disk,
-            ],
-        )?;
+        let script = "label: gpt\n,512M,U,EFI System\n,,L,Linux filesystem\n";
+        command::run_with_stdin("sfdisk", &["--wipe", "always", &disk], script)?;
         (Some(partition_path(&disk, 1)), partition_path(&disk, 2))
     };
-
-    // Inform the kernel of the new table.
-    ui.status("Refreshing partition table...");
-    command::run("partprobe", &[&disk])
-        .context("partprobe failed — the kernel may not see new partitions")?;
 
     ui.status("Updated partition layout:");
     command::run("lsblk", &[])?;
