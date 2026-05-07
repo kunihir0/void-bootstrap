@@ -281,7 +281,7 @@ const BTRFS_FULL_SUBVOLS: [BtrfsSubvol; 10] = [
         nocow: false,
     },
     BtrfsSubvol {
-        name: "@grub_efi",
+        name: "@/boot/grub/x86_64-efi",
         mountpoint: "boot/grub/x86_64-efi",
         nocow: false,
     },

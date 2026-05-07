@@ -28,6 +28,11 @@ pub(crate) fn create_subvolumes(ui: &Ui, device: &str, layout: BtrfsLayout) -> R
     for sv in subvols {
         let path = format!("{BTRFS_SETUP_DIR}/{}", sv.name);
         ui.info(&format!("  subvolume: {} → /{}", sv.name, sv.mountpoint));
+        
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            fs::create_dir_all(parent)?;
+        }
+
         command::run("btrfs", &["subvolume", "create", &path])?;
         if sv.nocow {
             ui.info(&format!("    Disabling COW on {}", sv.name));
