@@ -106,6 +106,9 @@ else
   EFI_DISK=$(echo "$EFI_DEV" | sed 's/[0-9]*$//')
   EFI_PART=$(echo "$EFI_DEV" | grep -o '[0-9]*$')
 fi
+echo "Mounting efivarfs if needed..."
+modprobe efivarfs 2>/dev/null || true
+mountpoint -q /sys/firmware/efi/efivars || mount -t efivarfs efivarfs /sys/firmware/efi/efivars || true
 echo "EFI disk=$EFI_DISK partition=$EFI_PART"
 efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi' || echo "Warning: efibootmgr failed (non-fatal)" || true
 "#,
