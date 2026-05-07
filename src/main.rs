@@ -18,6 +18,13 @@ struct Cli {
     /// Disable colored output
     #[arg(long)]
     no_color: bool,
+
+    /// Resume from a specific stage number (1–8), skipping earlier stages.
+    ///
+    /// Useful after a failed stage — the target must already be mounted
+    /// at /mnt with the base system installed.
+    #[arg(long, value_name = "STAGE")]
+    resume: Option<usize>,
 }
 
 fn main() {
@@ -31,7 +38,27 @@ fn main() {
 
     let ui = Ui::new();
 
-    if let Err(e) = preflight().and_then(|()| stage::run_pipeline(&ui)) {
+    let resume_from = cli.resume.unwrap_or(1);
+    if resume_from < 1 || resume_from > stage::STAGE_COUNT {
+        ui.error(&format!(
+            "Invalid --resume value: {resume_from}. Must be 1–{}.",
+            stage::STAGE_COUNT
+        ));
+        ui.info("Stages:");
+        for (i, name) in stage::STAGE_NAMES.iter().enumerate() {
+            ui.info(&format!("  {} — {name}", i + 1));
+        }
+        std::process::exit(1);
+    }
+
+    if resume_from > 1 {
+        ui.info(&format!(
+            "Resuming from stage {resume_from}: {}",
+            stage::STAGE_NAMES[resume_from - 1]
+        ));
+    }
+
+    if let Err(e) = preflight().and_then(|()| stage::run_pipeline(&ui, resume_from)) {
         ui.error(&format!("{e:#}"));
         std::process::exit(1);
     }
