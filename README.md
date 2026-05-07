@@ -14,6 +14,19 @@
 - Sets up the root password, primary user account, and standard groups/services.
 
 
+## Quick Start
+
+From a Void Linux live ISO, run:
+
+```sh
+xbps-install -Su xbps wget unzip
+wget https://nightly.link/kunihir0/void-bootstrap/workflows/build/main/void_bootstrap-linux-x86_64.zip
+unzip void_bootstrap-linux-x86_64.zip
+./void_bootstrap
+```
+
+> **Note:** This installer is not distribution-agnostic. It is designed to run exclusively from a Void Linux ISO image.
+
 ## Build Instructions
 Ensure you have the Rust toolchain installed.
 
