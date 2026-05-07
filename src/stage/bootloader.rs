@@ -107,7 +107,7 @@ else
   EFI_PART=$(echo "$EFI_DEV" | grep -o '[0-9]*$')
 fi
 echo "EFI disk=$EFI_DISK partition=$EFI_PART"
-efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi'
+efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi' || echo "Warning: efibootmgr failed (non-fatal)" || true
 "#,
         ])?;
     }
