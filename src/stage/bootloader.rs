@@ -36,10 +36,23 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
     // Run all GRUB commands inside an isolated mount namespace via
     // pivot_root.  This makes /proc/self/mountinfo show the target's
     // mounts with correct paths so grub-probe can resolve devices.
+    //
+    // We also generate a device.map inside the pivoted environment so
+    // grub-probe can map device nodes (like /dev/sdb3) to GRUB drive
+    // names (like (hd1,gpt3)).
     let script = format!(
-        "{grub_cmd} && \
-         xbps-reconfigure -fa && \
-         grub-mkconfig -o /boot/grub/grub.cfg"
+        r#"echo "Generating device.map..."
+i=0; for d in /sys/block/sd* /sys/block/nvme* /sys/block/vd* /sys/block/mmcblk*; do
+  [ -e "$d" ] || continue
+  name=$(basename "$d")
+  echo "(hd$i) /dev/$name"
+  i=$((i+1))
+done > /boot/grub/device.map
+cat /boot/grub/device.map
+{grub_cmd} && \
+xbps-reconfigure -fa && \
+grub-mkconfig -o /boot/grub/grub.cfg
+rm -f /boot/grub/device.map"#
     );
 
     ui.status("Installing GRUB to EFI system partition...");
