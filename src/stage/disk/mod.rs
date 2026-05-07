@@ -100,18 +100,9 @@ pub(crate) fn run(ui: &Ui) -> Result<InstallContext> {
         btrfs::create_subvolumes(ui, &root_device, layout)?;
     }
 
-    // Only format the EFI partition if the user didn't bring an existing one,
-    // or if they explicitly ask.
+    // Only format the EFI partition if the user didn't bring an existing one.
     if use_existing_efi {
-        let format_efi = ui.confirm_destructive(
-            "Formatting will destroy existing bootloaders on this EFI partition.",
-            "Format the existing EFI partition?",
-        )?;
-        if format_efi {
-            format::format_efi(ui, &efi_device)?;
-        } else {
-            ui.info("Skipping EFI format. Existing bootloaders will be preserved.");
-        }
+        ui.info("Skipping EFI format. Existing bootloaders will be preserved.");
     } else {
         // Auto-created EFI partition — always format it.
         format::format_efi(ui, &efi_device)?;
