@@ -86,9 +86,7 @@ echo "[pivot] Unmounting old root..."
 umount -l /mnt 2>/dev/null || true
 echo "[pivot] Mounting fresh procfs..."
 mount -t proc proc /proc
-echo "[pivot] Verifying mountinfo root..."
-head -5 /proc/self/mountinfo
-echo "[pivot] Running: {script}"
+echo "[pivot] Environment ready, running payload..."
 {script}"#
     );
 
