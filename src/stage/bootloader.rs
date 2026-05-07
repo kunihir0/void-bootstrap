@@ -1,5 +1,5 @@
 use crate::ui::Ui;
-use crate::util::command::run_pivoted;
+use crate::util::command::{run_chroot, run_pivoted};
 use anyhow::Result;
 use std::path::Path;
 
@@ -65,7 +65,11 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
     // running from a live USB because it cannot map the host's block
     // devices to GRUB drive names.  grub-mkimage doesn't need device
     // mapping — it just bundles modules into an EFI PE binary.
-    let mut script = format!(
+    //
+    // grub-mkimage, xbps-reconfigure, and grub-mkconfig run inside a
+    // pivoted mount namespace so grub-probe (called by grub-mkconfig)
+    // sees correct mount paths.
+    let script = format!(
         r#"echo "Building GRUB EFI binary with grub-mkimage..."
 mkdir -p /boot/efi/EFI/Void
 mkdir -p /boot/efi/EFI/BOOT
@@ -79,16 +83,24 @@ cp /boot/efi/EFI/Void/grubx64.efi /boot/efi/EFI/BOOT/BOOTX64.EFI
 echo "Copying GRUB modules to /boot/grub/x86_64-efi/..."
 mkdir -p /boot/grub/x86_64-efi
 cp /usr/lib/grub/x86_64-efi/*.mod /boot/grub/x86_64-efi/ 2>/dev/null || true
-cp /usr/lib/grub/x86_64-efi/*.lst /boot/grub/x86_64-efi/ 2>/dev/null || true"#
+cp /usr/lib/grub/x86_64-efi/*.lst /boot/grub/x86_64-efi/ 2>/dev/null || true
+echo "Reconfiguring installed packages..."
+xbps-reconfigure -fa
+echo "Generating GRUB configuration..."
+grub-mkconfig -o /boot/grub/grub.cfg"#
     );
 
+    ui.status("Installing GRUB to EFI system partition...");
+    run_pivoted(&script)?;
+
+    // efibootmgr needs /sys/firmware/efi/efivars which is only accessible
+    // via the bind-mounted /sys in the regular chroot — NOT inside the
+    // pivoted namespace.  Run it separately via run_chroot.
     if update_nvram {
-        // Parse EFI partition device into disk + partition number for efibootmgr.
-        // e.g. /dev/sda1 → disk=/dev/sda part=1
-        //      /dev/nvme0n1p1 → disk=/dev/nvme0n1 part=1
-        script.push_str(
+        ui.status("Registering Void in UEFI boot menu...");
+        run_chroot(&[
+            "sh", "-c",
             r#"
-echo "Registering Void in UEFI boot menu..."
 EFI_DEV=$(findmnt -n -o SOURCE /boot/efi)
 if echo "$EFI_DEV" | grep -q 'nvme\|mmcblk'; then
   EFI_DISK=$(echo "$EFI_DEV" | sed 's/p[0-9]*$//')
@@ -98,21 +110,10 @@ else
   EFI_PART=$(echo "$EFI_DEV" | grep -o '[0-9]*$')
 fi
 echo "EFI disk=$EFI_DISK partition=$EFI_PART"
-efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi' || echo "Warning: efibootmgr failed (non-fatal)"
+efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi'
 "#,
-        );
+        ])?;
     }
-
-    script.push_str(
-        r#"
-echo "Reconfiguring installed packages..."
-xbps-reconfigure -fa
-echo "Generating GRUB configuration..."
-grub-mkconfig -o /boot/grub/grub.cfg"#,
-    );
-
-    ui.status("Installing GRUB to EFI system partition...");
-    run_pivoted(&script)?;
 
     ui.success("Bootloader installed.");
 

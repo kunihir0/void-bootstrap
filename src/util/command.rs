@@ -76,17 +76,11 @@ pub(crate) fn run_chroot(args: &[&str]) -> Result<()> {
 pub(crate) fn run_pivoted(script: &str) -> Result<()> {
     let wrapper = format!(
         r#"set -e
-echo "[pivot] Making mounts private..."
 mount --make-rprivate /
-echo "[pivot] Executing pivot_root {TARGET} {TARGET}/mnt..."
 pivot_root {TARGET} {TARGET}/mnt
-echo "[pivot] Pivot succeeded, cd /..."
 cd /
-echo "[pivot] Unmounting old root..."
 umount -l /mnt 2>/dev/null || true
-echo "[pivot] Mounting fresh procfs..."
 mount -t proc proc /proc
-echo "[pivot] Environment ready, running payload..."
 {script}"#
     );
 
