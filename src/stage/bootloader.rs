@@ -1,5 +1,5 @@
 use crate::ui::Ui;
-use crate::util::command::{run_chroot, run_pivoted};
+use crate::util::command::run_chroot;
 use anyhow::Result;
 use std::path::Path;
 
@@ -65,12 +65,9 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
     // running from a live USB because it cannot map the host's block
     // devices to GRUB drive names.  grub-mkimage doesn't need device
     // mapping — it just bundles modules into an EFI PE binary.
-    //
-    // grub-mkimage, xbps-reconfigure, and grub-mkconfig run inside a
-    // pivoted mount namespace so grub-probe (called by grub-mkconfig)
-    // sees correct mount paths.
     let script = format!(
-        r#"echo "Building GRUB EFI binary with grub-mkimage..."
+        r#"set -e
+echo "Building GRUB EFI binary with grub-mkimage..."
 mkdir -p /boot/efi/EFI/Void
 mkdir -p /boot/efi/EFI/BOOT
 grub-mkimage \
@@ -91,7 +88,7 @@ grub-mkconfig -o /boot/grub/grub.cfg"#
     );
 
     ui.status("Installing GRUB to EFI system partition...");
-    run_pivoted(&script)?;
+    run_chroot(&["sh", "-c", &script])?;
 
     // efibootmgr needs /sys/firmware/efi/efivars which is only accessible
     // via the bind-mounted /sys in the regular chroot — NOT inside the

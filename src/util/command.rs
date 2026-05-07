@@ -65,27 +65,6 @@ pub(crate) fn run_chroot(args: &[&str]) -> Result<()> {
     run("chroot", &[&[TARGET], args].concat())
 }
 
-/// Run a shell script inside an isolated mount namespace where the target
-/// root (`/mnt`) has been `pivot_root`'d to become `/`.
-///
-/// This is needed for `grub-install` because `grub-probe` reads
-/// `/proc/self/mountinfo` which, inside a plain `chroot`, still shows
-/// host-relative paths (e.g. `/dev/sdb3 /` for the live USB).  After
-/// `pivot_root`, the kernel reports mount paths relative to the new root,
-/// so mountinfo correctly shows `/dev/sda2 /` and `/dev/sda1 /boot/efi`.
-pub(crate) fn run_pivoted(script: &str) -> Result<()> {
-    let wrapper = format!(
-        r#"set -e
-mount --make-rprivate /
-pivot_root {TARGET} {TARGET}/mnt
-cd /
-umount -l /mnt 2>/dev/null || true
-mount -t proc proc /proc
-{script}"#
-    );
-
-    run("unshare", &["--mount", "--fork", "--", "sh", "-c", &wrapper])
-}
 
 pub(crate) fn block_device_uuid(partition: &str) -> Result<String> {
     let uuid = run_output("blkid", &["-s", "UUID", "-o", "value", partition])?;
