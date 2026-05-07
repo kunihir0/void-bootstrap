@@ -43,7 +43,10 @@ mod tests {
     #[test]
     fn target_path_joins_correctly() {
         let ctx = dummy_ctx();
-        assert_eq!(ctx.target_path("etc/hostname"), PathBuf::from("/mnt/etc/hostname"));
+        assert_eq!(
+            ctx.target_path("etc/hostname"),
+            PathBuf::from("/mnt/etc/hostname")
+        );
         assert_eq!(ctx.target_path("boot/efi"), PathBuf::from("/mnt/boot/efi"));
     }
 }

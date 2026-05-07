@@ -7,8 +7,10 @@ use anyhow::Result;
 use std::fs;
 
 pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
-    let gpu: GpuVendor =
-        ui.select_parsed("Select GPU vendor for drivers:", GpuVendor::SELECT_OPTIONS.to_vec())?;
+    let gpu: GpuVendor = ui.select_parsed(
+        "Select GPU vendor for drivers:",
+        GpuVendor::SELECT_OPTIONS.to_vec(),
+    )?;
 
     let mut base_packages = vec![
         "base-system",

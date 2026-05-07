@@ -236,16 +236,32 @@ pub(crate) struct BtrfsSubvol {
     pub mountpoint: &'static str,
 }
 
-const BTRFS_SIMPLE_SUBVOLS: [BtrfsSubvol; 1] = [
-    BtrfsSubvol { name: "@", mountpoint: "" },
-];
+const BTRFS_SIMPLE_SUBVOLS: [BtrfsSubvol; 1] = [BtrfsSubvol {
+    name: "@",
+    mountpoint: "",
+}];
 
 const BTRFS_FULL_SUBVOLS: [BtrfsSubvol; 5] = [
-    BtrfsSubvol { name: "@", mountpoint: "" },
-    BtrfsSubvol { name: "@home", mountpoint: "home" },
-    BtrfsSubvol { name: "@log", mountpoint: "var/log" },
-    BtrfsSubvol { name: "@cache", mountpoint: "var/cache" },
-    BtrfsSubvol { name: "@snapshots", mountpoint: ".snapshots" },
+    BtrfsSubvol {
+        name: "@",
+        mountpoint: "",
+    },
+    BtrfsSubvol {
+        name: "@home",
+        mountpoint: "home",
+    },
+    BtrfsSubvol {
+        name: "@log",
+        mountpoint: "var/log",
+    },
+    BtrfsSubvol {
+        name: "@cache",
+        mountpoint: "var/cache",
+    },
+    BtrfsSubvol {
+        name: "@snapshots",
+        mountpoint: ".snapshots",
+    },
 ];
 
 #[cfg(test)]

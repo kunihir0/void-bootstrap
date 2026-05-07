@@ -44,7 +44,10 @@ pub(crate) fn run_pipeline(ui: &Ui) -> Result<()> {
 
     // ChrootGuard binds host filesystems on enter and unmounts on drop.
     // The `_chroot` binding keeps the guard alive until this function returns.
-    let _chroot = runner.run("Configuring the Chroot Environment", chroot::ChrootGuard::enter)?;
+    let _chroot = runner.run(
+        "Configuring the Chroot Environment",
+        chroot::ChrootGuard::enter,
+    )?;
     runner.run("Native System Configuration", |ui| configure::run(ui, &ctx))?;
 
     let nvram_updated = runner.run("Installing GRUB Bootloader", bootloader::run)?;

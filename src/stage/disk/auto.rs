@@ -16,11 +16,7 @@ pub(crate) struct AutoResult {
 /// NVMe and mmcblk devices use the `p` separator (e.g. `/dev/nvme0n1p1`),
 /// while traditional SCSI/SATA disks append the number directly (`/dev/sda1`).
 fn partition_path(disk: &str, num: u32) -> String {
-    if disk
-        .chars()
-        .last()
-        .is_some_and(|c| c.is_ascii_digit())
-    {
+    if disk.chars().last().is_some_and(|c| c.is_ascii_digit()) {
         format!("{disk}p{num}")
     } else {
         format!("{disk}{num}")

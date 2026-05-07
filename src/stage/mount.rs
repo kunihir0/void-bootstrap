@@ -9,7 +9,9 @@ use std::process::Command;
 pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     if command::run_output("findmnt", &["-M", TARGET]).is_ok() {
         let auto_unmount = ui.confirm(
-            &format!("{TARGET} is already mounted (likely from a previous run). Auto-unmount it now?"),
+            &format!(
+                "{TARGET} is already mounted (likely from a previous run). Auto-unmount it now?"
+            ),
             true,
         )?;
 
@@ -38,7 +40,10 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     // ── Mount EFI ───────────────────────────────────────────────
     let efi_mount = ctx.target_path("boot/efi");
     let efi_mount_str = efi_mount.to_string_lossy();
-    ui.status(&format!("Mounting {} at {efi_mount_str}...", ctx.efi_device));
+    ui.status(&format!(
+        "Mounting {} at {efi_mount_str}...",
+        ctx.efi_device
+    ));
     fs::create_dir_all(&efi_mount).context("Failed to create EFI directory")?;
     command::run("mount", &[&ctx.efi_device, &efi_mount_str])?;
 
@@ -73,7 +78,10 @@ fn mount_btrfs_subvolumes(ui: &Ui, ctx: &InstallContext, layout: BtrfsLayout) ->
         let mount_target_str = mount_target.to_string_lossy().to_string();
         let opts = ctx.fs_type.subvol_mount_opts(sv.name);
 
-        ui.status(&format!("Mounting subvol {} at {mount_target_str}...", sv.name));
+        ui.status(&format!(
+            "Mounting subvol {} at {mount_target_str}...",
+            sv.name
+        ));
         fs::create_dir_all(&mount_target)?;
         command::run("mount", &["-o", &opts, &ctx.root_device, &mount_target_str])?;
     }

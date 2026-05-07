@@ -104,25 +104,17 @@ impl Ui {
                 "{}",
                 self.ansi("1;31", " !! CRITICAL NEXT STEPS FOR DUAL/MULTI-BOOT")
             );
-            self.warning(
-                "Because '--no-nvram' was used, Void is NOT yet in your UEFI boot list.",
-            );
+            self.warning("Because '--no-nvram' was used, Void is NOT yet in your UEFI boot list.");
             println!(
                 "    Before rebooting, you must do ONE of the following to ensure you can boot Void:\n"
             );
             println!("    A) Add to OpenCore Config:");
             println!("       Point a Misc > Entries item at \\EFI\\Void\\grubx64.efi");
-            println!(
-                "       (Ensure Misc > Boot > LauncherOption is set properly if needed).\n"
-            );
+            println!("       (Ensure Misc > Boot > LauncherOption is set properly if needed).\n");
             println!("    B) Register via efibootmgr (run before unmounting):");
             println!("       efibootmgr --create --disk /dev/sdX --part N \\");
-            println!(
-                "         --label 'Void Linux' --loader '\\EFI\\Void\\grubx64.efi'\n"
-            );
-            self.info(
-                "Verify exact path with: ls /mnt/boot/efi/EFI/Void/ before registering",
-            );
+            println!("         --label 'Void Linux' --loader '\\EFI\\Void\\grubx64.efi'\n");
+            self.info("Verify exact path with: ls /mnt/boot/efi/EFI/Void/ before registering");
         }
 
         println!();
@@ -140,11 +132,7 @@ impl Ui {
 
     /// Destructive confirmation — prints a red warning line before the
     /// prompt and defaults to `No`.
-    pub(crate) fn confirm_destructive(
-        &self,
-        warning: &str,
-        prompt: &str,
-    ) -> Result<bool> {
+    pub(crate) fn confirm_destructive(&self, warning: &str, prompt: &str) -> Result<bool> {
         println!(
             "{} {}",
             self.ansi("1;31", " !!"),

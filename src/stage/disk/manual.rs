@@ -45,5 +45,8 @@ pub(crate) fn run(ui: &Ui, existing_efi: Option<&str>) -> Result<ManualResult> {
         )?
     };
 
-    Ok(ManualResult { root_part, efi_part })
+    Ok(ManualResult {
+        root_part,
+        efi_part,
+    })
 }

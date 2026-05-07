@@ -9,11 +9,20 @@ const XLIBRE_KEY_PATH: &str =
     "/var/db/xbps/keys/00:ca:42:57:c9:c0:9a:ec:94:b4:7d:97:e5:a9:aa:1e.plist";
 const XLIBRE_REPO_URL: &str = "https://github.com/xlibre-void/xlibre/releases/latest/download/";
 
+const BLACKHOLE_VL_REPO_URL: &str =
+    "https://raw.githubusercontent.com/Event-Horizon-VL/blackhole-vl/repository-x86_64";
+
 pub(crate) fn run(ui: &Ui) -> Result<()> {
     let add_xlibre = ui.confirm("Add the XLibre (X server fork) repository?", false)?;
 
     if add_xlibre {
         install_xlibre(ui)?;
+    }
+
+    let add_blackhole_vl = ui.confirm("Add the blackhole-vl (Hyprland) repository?", false)?;
+
+    if add_blackhole_vl {
+        install_blackhole_vl(ui)?;
     }
 
     Ok(())
@@ -37,5 +46,18 @@ fn install_xlibre(ui: &Ui) -> Result<()> {
     )?;
 
     ui.success("XLibre repository added successfully.");
+    Ok(())
+}
+
+fn install_blackhole_vl(ui: &Ui) -> Result<()> {
+    ui.status("Adding blackhole-vl repository configuration...");
+    let xbps_dir = format!("{TARGET}/etc/xbps.d");
+    fs::create_dir_all(&xbps_dir)?;
+    fs::write(
+        format!("{xbps_dir}/20-repository-blackhole-vl.conf"),
+        format!("repository={BLACKHOLE_VL_REPO_URL}\n"),
+    )?;
+
+    ui.success("blackhole-vl repository added successfully.");
     Ok(())
 }

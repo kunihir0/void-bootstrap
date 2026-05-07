@@ -17,7 +17,9 @@ pub(crate) fn setup(ui: &Ui, partition: &str) -> Result<String> {
     ui.status(&format!("Creating Volume Group '{VG_NAME}'..."));
     command::run("vgcreate", &[VG_NAME, partition])?;
 
-    ui.status(&format!("Creating Logical Volume '{LV_ROOT}' (100% of VG)..."));
+    ui.status(&format!(
+        "Creating Logical Volume '{LV_ROOT}' (100% of VG)..."
+    ));
     command::run("lvcreate", &["-l", "100%FREE", "-n", LV_ROOT, VG_NAME])?;
 
     let lv_path = format!("/dev/{VG_NAME}/{LV_ROOT}");
