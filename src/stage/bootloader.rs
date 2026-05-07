@@ -42,17 +42,18 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
     // names (like (hd1,gpt3)).
     let script = format!(
         r#"echo "Generating device.map..."
+DEVMAP=/boot/grub/device.map
+trap 'rm -f $DEVMAP' EXIT
 i=0; for d in /sys/block/sd* /sys/block/nvme* /sys/block/vd* /sys/block/mmcblk*; do
   [ -e "$d" ] || continue
   name=$(basename "$d")
   echo "(hd$i) /dev/$name"
   i=$((i+1))
-done > /boot/grub/device.map
-cat /boot/grub/device.map
-{grub_cmd} && \
-xbps-reconfigure -fa && \
-grub-mkconfig -o /boot/grub/grub.cfg
-rm -f /boot/grub/device.map"#
+done > $DEVMAP
+cat $DEVMAP
+{grub_cmd} --device-map=$DEVMAP
+xbps-reconfigure -fa
+grub-mkconfig -o /boot/grub/grub.cfg"#
     );
 
     ui.status("Installing GRUB to EFI system partition...");
