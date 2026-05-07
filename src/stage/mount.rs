@@ -47,6 +47,50 @@ pub(crate) fn run(ui: &Ui, ctx: &InstallContext) -> Result<()> {
     fs::create_dir_all(&efi_mount).context("Failed to create EFI directory")?;
     command::run("mount", &[&ctx.efi_device, &efi_mount_str])?;
 
+    // ── Clean up existing EFI & NVRAM entries ───────────────────
+    let void_efi_dir = ctx.target_path("boot/efi/EFI/Void");
+    if void_efi_dir.exists() {
+        if ui.confirm("Detected existing Void Linux bootloader files in the EFI partition. Remove them to ensure a clean install?", true)? {
+            // Safety check: assert the path ends with EFI/Void
+            if void_efi_dir.ends_with("EFI/Void") || void_efi_dir.ends_with("EFI\\Void") {
+                ui.status("Cleaning up old EFI/Void directory...");
+                fs::remove_dir_all(&void_efi_dir).context("Failed to remove old EFI directory")?;
+            } else {
+                ui.warning("Safety check failed: Path does not end with EFI/Void. Skipping cleanup.");
+            }
+        }
+    }
+
+    if std::path::Path::new("/sys/firmware/efi/efivars").exists() {
+        if let Ok(output) = command::run_output("efibootmgr", &[]) {
+            let mut stale_entries = Vec::new();
+            for line in output.lines() {
+                if line.starts_with("Boot") && line.contains("Void") {
+                    stale_entries.push(line.to_string());
+                }
+            }
+
+            if !stale_entries.is_empty() {
+                ui.info("Found the following stale 'Void' entries in the UEFI boot menu:");
+                for entry in &stale_entries {
+                    ui.info(&format!("  {entry}"));
+                }
+                
+                if ui.confirm("Remove these specific 'Void' entries from the motherboard UEFI boot menu?", true)? {
+                    for entry in stale_entries {
+                        if let Some(boot_str) = entry.split('*').next() {
+                            if boot_str.len() >= 8 {
+                                let boot_num = &boot_str[4..8];
+                                ui.status(&format!("Removing NVRAM entry {boot_num}..."));
+                                let _ = command::run("efibootmgr", &["-b", boot_num, "-B", "-q"]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     ui.success("Partitions mounted.");
 
     Ok(())
