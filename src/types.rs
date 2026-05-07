@@ -70,13 +70,11 @@ impl GpuVendor {
     pub(crate) fn packages(self) -> &'static [&'static str] {
         match self {
             Self::Amd => &[
-                "linux-firmware-amd",
                 "mesa-dri",
                 "mesa-vaapi",
                 "mesa-vulkan-radeon",
             ],
             Self::Intel => &[
-                "linux-firmware-intel",
                 "mesa-dri",
                 "mesa-vaapi",
                 "intel-video-accel",

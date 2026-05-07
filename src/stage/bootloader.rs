@@ -2,7 +2,6 @@ use crate::ui::Ui;
 use crate::util::command::run_chroot;
 use anyhow::Result;
 use std::fs;
-use std::os::unix::fs::symlink;
 use std::path::Path;
 
 pub(crate) fn run(ui: &Ui) -> Result<bool> {
@@ -33,48 +32,56 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
         grub_args.push("--no-nvram");
     }
 
-    ui.status("Configuring chroot mtab for GRUB...");
-    let mtab_path = format!("{}/etc/mtab", crate::context::TARGET);
-    let mounts = fs::read_to_string("/proc/mounts").unwrap_or_default();
-    let mut clean_mtab = String::new();
-    let target_exact = format!(" {} ", crate::context::TARGET);
-    let target_prefix = format!(" {}/", crate::context::TARGET);
-
-    for line in mounts.lines() {
-        if line.contains(&target_exact) || line.contains(&target_prefix) {
-            let mut new_line = line.replace(&target_exact, " / ");
-            new_line = new_line.replace(&target_prefix, " /");
-            clean_mtab.push_str(&new_line);
-            clean_mtab.push('\n');
-        }
-    }
-
-    if clean_mtab.is_empty() {
-        ui.warning("Could not derive chroot mount entries from /proc/mounts.");
-        ui.warning("GRUB may fail if the live environment's mounts confuse grub-probe.");
-    }
-
-    let _ = fs::remove_file(&mtab_path);
-    fs::write(&mtab_path, &clean_mtab)?;
+    ui.status("Generating GRUB device map for chroot environment...");
+    let device_map_path = format!("{}/boot/grub/device.map", crate::context::TARGET);
+    let device_map = generate_device_map()?;
+    fs::create_dir_all(format!("{}/boot/grub", crate::context::TARGET))?;
+    fs::write(&device_map_path, &device_map)?;
 
     ui.status("Installing GRUB to EFI system partition...");
+    run_chroot(&grub_args)?;
+    ui.status("Reconfiguring installed packages...");
+    run_chroot(&["xbps-reconfigure", "-fa"])?;
+    ui.status("Generating GRUB configuration...");
+    run_chroot(&["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])?;
 
-    let res = (|| -> Result<()> {
-        run_chroot(&grub_args)?;
-        ui.status("Reconfiguring installed packages...");
-        run_chroot(&["xbps-reconfigure", "-fa"])?;
-        ui.status("Generating GRUB configuration...");
-        run_chroot(&["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])?;
-        Ok(())
-    })();
-
-    // Restore the standard symlink so the installed system behaves normally.
-    let _ = fs::remove_file(&mtab_path);
-    let _ = symlink("/proc/self/mounts", &mtab_path);
-
-    res?;
+    // Clean up the synthetic device.map so the installed system
+    // auto-detects on future kernel/grub updates.
+    let _ = fs::remove_file(&device_map_path);
 
     ui.success("Bootloader installed.");
 
     Ok(update_nvram)
+}
+
+/// Build a GRUB `device.map` from `/sys/block`, covering every disk the
+/// kernel can see (sd*, nvme*, vd*, mmcblk*).
+fn generate_device_map() -> Result<String> {
+    let mut entries = Vec::new();
+
+    for entry in fs::read_dir("/sys/block")? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+
+        // Only include real disk devices, skip loop/ram/dm/sr/etc.
+        let dominated = name.starts_with("sd")
+            || name.starts_with("nvme")
+            || name.starts_with("vd")
+            || name.starts_with("mmcblk");
+
+        if dominated {
+            entries.push(name.into_owned());
+        }
+    }
+
+    // Sort for deterministic ordering (hd0, hd1, …).
+    entries.sort();
+
+    let mut map = String::new();
+    for (i, dev) in entries.iter().enumerate() {
+        map.push_str(&format!("(hd{i}) /dev/{dev}\n"));
+    }
+
+    Ok(map)
 }
