@@ -29,6 +29,10 @@ pub(crate) fn create_subvolumes(ui: &Ui, device: &str, layout: BtrfsLayout) -> R
         let path = format!("{BTRFS_SETUP_DIR}/{}", sv.name);
         ui.info(&format!("  subvolume: {} → /{}", sv.name, sv.mountpoint));
         command::run("btrfs", &["subvolume", "create", &path])?;
+        if sv.nocow {
+            ui.info(&format!("    Disabling COW on {}", sv.name));
+            command::run("chattr", &["+C", &path])?;
+        }
     }
 
     ui.success("BTRFS subvolumes created.");

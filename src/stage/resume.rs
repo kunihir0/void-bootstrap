@@ -10,8 +10,8 @@ pub(crate) fn reconstruct_context() -> Result<InstallContext> {
     // ── Root device + filesystem type ──────────────────────────
     let root_source = findmnt_field(TARGET, "SOURCE")
         .context("Cannot determine root device — is /mnt mounted?")?;
-    let root_fstype = findmnt_field(TARGET, "FSTYPE")
-        .context("Cannot determine root filesystem type")?;
+    let root_fstype =
+        findmnt_field(TARGET, "FSTYPE").context("Cannot determine root filesystem type")?;
 
     let fs_type = match root_fstype.as_str() {
         "ext4" => FsType::Ext4,
@@ -85,8 +85,6 @@ mod tests {
     #[test]
     fn lvm_detection_by_vg_name() {
         // Devices under /dev/vg_void/ should be detected as LVM.
-        assert!(
-            "/dev/vg_void/lv_root".starts_with(&format!("/dev/{}/", VolumeManager::VG_NAME))
-        );
+        assert!("/dev/vg_void/lv_root".starts_with(&format!("/dev/{}/", VolumeManager::VG_NAME)));
     }
 }

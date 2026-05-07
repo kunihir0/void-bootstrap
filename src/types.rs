@@ -69,16 +69,8 @@ pub(crate) enum GpuVendor {
 impl GpuVendor {
     pub(crate) fn packages(self) -> &'static [&'static str] {
         match self {
-            Self::Amd => &[
-                "mesa-dri",
-                "mesa-vaapi",
-                "mesa-vulkan-radeon",
-            ],
-            Self::Intel => &[
-                "mesa-dri",
-                "mesa-vaapi",
-                "intel-video-accel",
-            ],
+            Self::Amd => &["mesa-dri", "mesa-vaapi", "mesa-vulkan-radeon"],
+            Self::Intel => &["mesa-dri", "mesa-vaapi", "intel-video-accel"],
             Self::Nvidia => &["nvidia", "nvidia-libs"],
             Self::None => &[],
         }
@@ -232,33 +224,66 @@ pub(crate) struct BtrfsSubvol {
     pub name: &'static str,
     /// Mount point relative to TARGET (empty string = root).
     pub mountpoint: &'static str,
+    /// If true, `chattr +C` is applied to disable copy-on-write and compression.
+    pub nocow: bool,
 }
 
 const BTRFS_SIMPLE_SUBVOLS: [BtrfsSubvol; 1] = [BtrfsSubvol {
     name: "@",
     mountpoint: "",
+    nocow: false,
 }];
 
-const BTRFS_FULL_SUBVOLS: [BtrfsSubvol; 5] = [
+const BTRFS_FULL_SUBVOLS: [BtrfsSubvol; 10] = [
     BtrfsSubvol {
         name: "@",
         mountpoint: "",
+        nocow: false,
     },
     BtrfsSubvol {
         name: "@home",
         mountpoint: "home",
-    },
-    BtrfsSubvol {
-        name: "@log",
-        mountpoint: "var/log",
-    },
-    BtrfsSubvol {
-        name: "@cache",
-        mountpoint: "var/cache",
+        nocow: false,
     },
     BtrfsSubvol {
         name: "@snapshots",
         mountpoint: ".snapshots",
+        nocow: false,
+    },
+    BtrfsSubvol {
+        name: "@swap",
+        mountpoint: "swap",
+        nocow: true,
+    },
+    BtrfsSubvol {
+        name: "@var",
+        mountpoint: "var",
+        nocow: true,
+    },
+    BtrfsSubvol {
+        name: "@root",
+        mountpoint: "root",
+        nocow: false,
+    },
+    BtrfsSubvol {
+        name: "@tmp",
+        mountpoint: "tmp",
+        nocow: false,
+    },
+    BtrfsSubvol {
+        name: "@srv",
+        mountpoint: "srv",
+        nocow: false,
+    },
+    BtrfsSubvol {
+        name: "@usr_local",
+        mountpoint: "usr/local",
+        nocow: false,
+    },
+    BtrfsSubvol {
+        name: "@grub_efi",
+        mountpoint: "boot/grub/x86_64-efi",
+        nocow: false,
     },
 ];
 

@@ -62,9 +62,8 @@ pub(crate) fn run_output(command: &str, args: &[&str]) -> Result<String> {
 }
 
 pub(crate) fn run_chroot(args: &[&str]) -> Result<()> {
-    run("chroot", &[&[TARGET], args].concat())
+    run("xchroot", &[&[TARGET], args].concat())
 }
-
 
 pub(crate) fn block_device_uuid(partition: &str) -> Result<String> {
     let uuid = run_output("blkid", &["-s", "UUID", "-o", "value", partition])?;

@@ -3,44 +3,6 @@ use crate::util::command::run_chroot;
 use anyhow::Result;
 use std::path::Path;
 
-/// GRUB modules to embed in the EFI binary.
-///
-/// These cover: partition tables, filesystems the installer supports,
-/// UEFI video, kernel loading, config search, and chainloading (Windows).
-const GRUB_MODULES: &[&str] = &[
-    // Partition tables
-    "part_gpt",
-    "part_msdos",
-    // Filesystems
-    "fat",
-    "btrfs",
-    "ext2",
-    "xfs",
-    // Boot
-    "normal",
-    "boot",
-    "linux",
-    "configfile",
-    "chain",
-    // Search / probe
-    "search",
-    "search_fs_uuid",
-    "search_label",
-    "probe",
-    // Video
-    "all_video",
-    "efi_gop",
-    "efi_uga",
-    // Misc
-    "echo",
-    "test",
-    "ls",
-    "cat",
-    "gzio",
-    "loopback",
-    "lvm",
-];
-
 pub(crate) fn run(ui: &Ui) -> Result<bool> {
     let efi_vars_exist = Path::new("/sys/firmware/efi/efivars").exists();
     if !efi_vars_exist {
@@ -58,62 +20,29 @@ pub(crate) fn run(ui: &Ui) -> Result<bool> {
         false
     };
 
-    let modules = GRUB_MODULES.join(" ");
+    let nvram_flag = if update_nvram { "" } else { "--no-nvram" };
 
-    // Build the GRUB EFI binary manually with grub-mkimage instead of
-    // grub-install.  grub-install's device-mapping logic fails when
-    // running from a live USB because it cannot map the host's block
-    // devices to GRUB drive names.  grub-mkimage doesn't need device
-    // mapping — it just bundles modules into an EFI PE binary.
+    // With `xchroot`, the necessary virtual filesystems (/dev, /sys, /proc) are
+    // available inside the chroot, allowing `grub-install` to natively resolve
+    // block devices and automatically execute `efibootmgr`.
     let script = format!(
         r#"set -e
-echo "Building GRUB EFI binary with grub-mkimage..."
-mkdir -p /boot/efi/EFI/Void
-mkdir -p /boot/efi/EFI/BOOT
-grub-mkimage \
-  -O x86_64-efi \
-  -o /boot/efi/EFI/Void/grubx64.efi \
-  -p /boot/grub \
-  {modules}
-echo "Copying to fallback EFI path..."
-cp /boot/efi/EFI/Void/grubx64.efi /boot/efi/EFI/BOOT/BOOTX64.EFI
-echo "Copying GRUB modules to /boot/grub/x86_64-efi/..."
-mkdir -p /boot/grub/x86_64-efi
-cp /usr/lib/grub/x86_64-efi/*.mod /boot/grub/x86_64-efi/ 2>/dev/null || true
-cp /usr/lib/grub/x86_64-efi/*.lst /boot/grub/x86_64-efi/ 2>/dev/null || true
-echo "Reconfiguring installed packages..."
+echo "Reconfiguring installed packages (dracut)..."
 xbps-reconfigure -fa
+
+echo "Installing GRUB to EFI system partition..."
+grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="Void" {nvram_flag}
+
+echo "Copying to fallback EFI path..."
+mkdir -p /boot/efi/EFI/BOOT
+cp /boot/efi/EFI/Void/grubx64.efi /boot/efi/EFI/BOOT/BOOTX64.EFI
+
 echo "Generating GRUB configuration..."
 grub-mkconfig -o /boot/grub/grub.cfg"#
     );
 
-    ui.status("Installing GRUB to EFI system partition...");
+    ui.status("Installing bootloader...");
     run_chroot(&["sh", "-c", &script])?;
-
-    // efibootmgr needs /sys/firmware/efi/efivars which is only accessible
-    // via the bind-mounted /sys in the regular chroot — NOT inside the
-    // pivoted namespace.  Run it separately via run_chroot.
-    if update_nvram {
-        ui.status("Registering Void in UEFI boot menu...");
-        run_chroot(&[
-            "sh", "-c",
-            r#"
-EFI_DEV=$(findmnt -n -o SOURCE /boot/efi)
-if echo "$EFI_DEV" | grep -q 'nvme\|mmcblk'; then
-  EFI_DISK=$(echo "$EFI_DEV" | sed 's/p[0-9]*$//')
-  EFI_PART=$(echo "$EFI_DEV" | grep -o '[0-9]*$')
-else
-  EFI_DISK=$(echo "$EFI_DEV" | sed 's/[0-9]*$//')
-  EFI_PART=$(echo "$EFI_DEV" | grep -o '[0-9]*$')
-fi
-echo "Mounting efivarfs if needed..."
-modprobe efivarfs 2>/dev/null || true
-mountpoint -q /sys/firmware/efi/efivars || mount -t efivarfs efivarfs /sys/firmware/efi/efivars || true
-echo "EFI disk=$EFI_DISK partition=$EFI_PART"
-efibootmgr -c -d "$EFI_DISK" -p "$EFI_PART" -L "Void" -l '\EFI\Void\grubx64.efi' || echo "Warning: efibootmgr failed (non-fatal)" || true
-"#,
-        ])?;
-    }
 
     ui.success("Bootloader installed.");
 

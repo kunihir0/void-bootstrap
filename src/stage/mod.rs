@@ -44,18 +44,14 @@ impl<'a> StageRunner<'a> {
     /// Run a stage.  If `resume_from` is set and this stage's number is
     /// below the resume point, the stage is skipped and the provided
     /// `skip_value` is returned instead.
-    pub(crate) fn run_or_skip<F, T>(
-        &mut self,
-        name: &str,
-        skip_value: T,
-        f: F,
-    ) -> Result<T>
+    pub(crate) fn run_or_skip<F, T>(&mut self, name: &str, skip_value: T, f: F) -> Result<T>
     where
         F: FnOnce(&Ui) -> Result<T>,
     {
         self.step += 1;
         if self.step < self.resume_from {
-            self.ui.step(self.step, &format!("{name} [skipped — resuming]"));
+            self.ui
+                .step(self.step, &format!("{name} [skipped — resuming]"));
             return Ok(skip_value);
         }
         self.ui.step(self.step, name);
@@ -101,7 +97,10 @@ pub(crate) fn run_pipeline(ui: &Ui, resume_from: usize) -> Result<()> {
     // because stages 5–8 need the bind mounts active.
     runner.step += 1;
     if resume_from > 4 {
-        ui.step(runner.step, "Configuring the Chroot Environment [re-entering]");
+        ui.step(
+            runner.step,
+            "Configuring the Chroot Environment [re-entering]",
+        );
     } else {
         ui.step(runner.step, "Configuring the Chroot Environment");
     }
@@ -113,8 +112,7 @@ pub(crate) fn run_pipeline(ui: &Ui, resume_from: usize) -> Result<()> {
     })?;
 
     // ── Stage 6: GRUB Bootloader ────────────────────────────────
-    let nvram_updated =
-        runner.run_or_skip("Installing GRUB Bootloader", false, bootloader::run)?;
+    let nvram_updated = runner.run_or_skip("Installing GRUB Bootloader", false, bootloader::run)?;
 
     // ── Stage 7: Users and Services ─────────────────────────────
     runner.run_or_skip("Finalizing Users and Services", (), users::run)?;
